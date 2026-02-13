@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Flash Kart Kütüphanesi</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#faf7f4;--bg2:#f0eaf6;--surface:#fff;--accent:#c06090;
+--accent-light:#f8e4ee;--accent-soft:#e8b0cc;--text:#3a3040;--text2:#9a90a0;
+--easy:#6cc49a;--medium:#e8b84a;--hard:#e07070;
+--shadow:0 4px 20px rgba(80,40,80,.07);--shadow-lg:0 8px 32px rgba(80,40,80,.10);
+--radius:22px;--radius-sm:14px;
+}
+body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--bg),var(--bg2));color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
+h1{font-size:1.8rem;font-weight:800;margin:20px 0 6px;background:linear-gradient(135deg,var(--accent),#a06cd5);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{color:var(--text);font-weight:700}
+.subtitle{color:var(--text2);margin-bottom:30px;font-size:.9rem}
+#auth-bar{width:100%;max-width:560px;display:flex;justify-content:flex-end;align-items:center;gap:10px;min-height:40px}
+.auth-info{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--text2)}
+.auth-info img{width:28px;height:28px;border-radius:50%}
+.admin-badge{background:var(--accent);color:#fff;font-size:.65rem;padding:2px 8px;border-radius:8px;font-weight:700}
+.btn-logout{background:transparent;color:var(--text2);border:none;font-family:inherit;font-size:.78rem;padding:6px 12px;cursor:pointer;border-radius:8px}
+.btn-logout:hover{color:var(--hard)}
+#login-screen{text-align:center;margin-top:60px}
+#login-screen .icon{font-size:4rem;margin-bottom:20px}
+#login-screen p{color:var(--text2);margin-bottom:24px;max-width:340px;margin-left:auto;margin-right:auto}
+.google-btn{display:inline-flex;align-items:center;gap:10px;padding:14px 32px;background:#fff;color:var(--text);border:2px solid #e0d4ea;border-radius:var(--radius);font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:var(--shadow);transition:.2s}
+.google-btn:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.google-btn svg{width:20px;height:20px}
+#loading{text-align:center;margin-top:40px;color:var(--text2)}
+.spinner{width:40px;height:40px;border:4px solid #e0d4ea;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#upload-area{width:100%;max-width:500px;border:2.5px dashed #d8c8e0;border-radius:var(--radius);padding:60px 30px;text-align:center;cursor:pointer;transition:.3s;background:var(--surface)}
+#upload-area:hover,#upload-area.dragover{border-color:var(--accent);background:var(--accent-light)}
+#upload-area .icon{font-size:3rem;margin-bottom:15px}
+#upload-area p{color:var(--text2)}
+#file-input{display:none}
+.stats{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+.stat{background:var(--surface);padding:8px 16px;border-radius:12px;font-size:.82rem;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(80,40,80,.05);font-weight:600}
+.stat .dot{width:10px;height:10px;border-radius:50%}
+.progress-wrap{width:100%;max-width:500px;background:#ece4f0;border-radius:10px;height:8px;margin-bottom:20px;overflow:hidden}
+.progress-bar{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--accent),#a06cd5);transition:width .4s}
+.card-container{perspective:1200px;width:100%;max-width:480px;height:300px;margin-bottom:20px;cursor:pointer}
+.card{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.4,.2,.2,1)}
+.card.flipped{transform:rotateY(180deg)}
+.card-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;font-size:1.15rem;line-height:1.6;overflow-y:auto}
+.card-front{background:linear-gradient(145deg,#fff5f8,#f2ecff);border:1.5px solid #ecdaf4;box-shadow:var(--shadow-lg)}
+.card-back{background:linear-gradient(145deg,#edfff5,#e4faf0);border:1.5px solid #c8e8d4;box-shadow:var(--shadow-lg);transform:rotateY(180deg)}
+.card-label{position:absolute;top:14px;font-size:.65rem;text-transform:uppercase;letter-spacing:2px;color:var(--text2);font-weight:700}
+.card-front .card-label{left:18px}
+.card-back .card-label{right:18px}
+.card-number{position:absolute;top:14px;right:18px;font-size:.72rem;color:var(--text2);font-weight:600}
+.card-topic-badge{position:absolute;bottom:12px;font-size:.68rem;color:var(--text2);background:rgba(160,108,213,.08);padding:3px 12px;border-radius:8px;font-weight:600}
+.card-topic-img{position:absolute;bottom:10px;right:16px;width:32px;height:32px;border-radius:8px;object-fit:cover;opacity:.5}
+.note-indicator{position:absolute;top:13px;left:48px;font-size:.72rem;opacity:.5}
+.difficulty{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:18px}
+.diff-btn{padding:12px 28px;border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:.95rem;font-weight:700;cursor:pointer;transition:.2s;color:#fff;box-shadow:0 3px 12px rgba(0,0,0,.10)}
+.diff-btn:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.diff-btn:active{transform:scale(.96)}
+.btn-easy{background:var(--easy)}.btn-medium{background:var(--medium)}.btn-hard{background:var(--hard)}
+.card-actions{display:flex;gap:10px;justify-content:center;margin-bottom:12px}
+.notes-panel{width:100%;max-width:480px;margin-bottom:14px;display:none}
+.notes-area{width:100%;min-height:70px;max-height:140px;background:var(--surface);border:1.5px solid #e0d4ea;border-radius:var(--radius-sm);color:var(--text);padding:12px;font-family:inherit;font-size:.85rem;resize:vertical;outline:none}
+.notes-area:focus{border-color:var(--accent)}
+.notes-area::placeholder{color:#c0b0cc}
+.controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:30px}
+.ctrl-btn{padding:10px 20px;background:var(--surface);color:var(--text);border:1.5px solid #e0d4ea;border-radius:var(--radius-sm);font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:.2s;box-shadow:0 2px 8px rgba(80,40,80,.04)}
+.ctrl-btn:hover{background:var(--accent-light);border-color:var(--accent-soft);transform:translateY(-1px)}
+.summary{background:var(--surface);border-radius:var(--radius);padding:40px;text-align:center;max-width:500px;width:100%;box-shadow:var(--shadow)}
+.summary h2{font-size:1.4rem;margin-bottom:20px}
+.summary-stats{display:flex;justify-content:center;gap:30px;margin:20px 0}
+.summary-stat{text-align:center}
+.summary-stat .num{font-size:2rem;font-weight:800}
+.summary-stat .label{font-size:.72rem;color:var(--text2);margin-top:4px;font-weight:600}
+.section-label{font-size:.78rem;color:var(--text2);margin:14px 0 6px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700}
+.topic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;width:100%;max-width:540px;margin:8px 0 4px}
+.topic-card{background:var(--surface);border-radius:18px;padding:14px 10px 12px;text-align:center;cursor:pointer;border:2.5px solid transparent;box-shadow:var(--shadow);transition:.25s;position:relative;user-select:none}
+.topic-card.active{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px rgba(192,96,144,.15)}
+.topic-card:hover{transform:translateY(-2px)}
+.tc-img{width:72px;height:72px;border-radius:14px;margin:0 auto 8px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:2rem;position:relative}
+.tc-img img{width:100%;height:100%;object-fit:cover;display:block}
+.tc-name{font-weight:700;font-size:.82rem;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-count{font-size:.72rem;color:var(--text2);font-weight:600}
+.tc-edit{position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-size:.72rem;cursor:pointer;opacity:0;transition:opacity .2s;box-shadow:0 2px 6px rgba(0,0,0,.10);z-index:2}
+.topic-card:hover .tc-edit{opacity:1}
+.tc-edit input{display:none}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--text);padding:12px 24px;border-radius:var(--radius-sm);font-size:.88rem;font-weight:700;z-index:999;opacity:0;transition:opacity .3s;box-shadow:var(--shadow-lg);border:1.5px solid #e0d4ea}
+.toast.show{opacity:1}
+.hidden{display:none!important}
+@media(max-width:520px){
+.card-container{height:250px}.card-face{font-size:1rem;padding:20px}
+h1{font-size:1.5rem}.controls{gap:6px}.ctrl-btn{padding:8px 12px;font-size:.78rem}
+.topic-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}.tc-img{width:56px;height:56px}
+}
+</style>
+</head>
+<body>
+<div id="auth-bar"></div>
+<div id="login-screen">
+<div class="icon">🃏</div>
+<h1>Flash Kart Kütüphanesi</h1>
+<p>Google hesabınızla giriş yaparak kart kütüphanesine erişin ve kendi ilerlemenizi takip edin.</p>
+<button class="google-btn" onclick="googleLogin()">
+<svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+Google ile Giriş Yap
+</button>
+</div>
+<div id="loading" class="hidden"><div class="spinner"></div><p>Veriler yükleniyor…</p></div>
+<div id="app" class="hidden">
+<h1>🃏 Flash Kart Kütüphanesi</h1>
+<p class="subtitle">Konularına göre çalışın · ilerlemeniz otomatik kaydedilir</p>
+<div id="toast" class="toast"></div>
+<div id="upload-area" class="hidden">
+<div class="icon">📂</div>
+<p><strong>CSV dosyası sürükleyip bırakın</strong></p>
+<p style="margin-top:8px;font-size:.8rem">veya tıklayarak seçin · kartlar kütüphaneye eklenir</p>
+<input type="file" id="file-input" accept=".csv" multiple>
+</div>
+<div id="lib-screen" class="hidden" style="width:100%;max-width:560px;display:flex;flex-direction:column;align-items:center">
+<h2 id="lib-title">📚 Kart Kütüphanesi</h2>
+<p id="lib-count" style="color:var(--text2);font-size:.85rem;margin:4px 0 8px"></p>
+<div class="stats" id="lib-stats"></div>
+<p class="section-label">📁 Konular <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.72rem">(tıkla: seç)</span></p>
+<div class="topic-grid" id="topic-grid"></div>
+<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+<button class="diff-btn btn-easy" onclick="studySelected()">▶️ Seçilenleri Çalış</button>
+<button class="diff-btn btn-medium" id="btn-unrated" onclick="studyUnratedSel()">❓ Yeni Kartlar</button>
+<button class="diff-btn btn-hard" id="btn-saved-review" onclick="studyHardSel()">🔁 Zor Tekrar</button>
+</div>
+<div id="admin-controls" class="hidden" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px">
+<button class="ctrl-btn" onclick="showUpload()">➕ CSV Ekle</button>
+<button class="ctrl-btn" onclick="deleteSelectedTopics()">🗑️ Seçili Konuları Sil</button>
+</div>
+<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
+<button class="ctrl-btn" onclick="resetRatings()">🔄 Puanları Sıfırla</button>
+</div>
+</div>
+<div id="study-screen" class="hidden" style="width:100%;display:flex;flex-direction:column;align-items:center">
+<div class="stats" id="stats"></div>
+<div class="progress-wrap"><div class="progress-bar" id="progress"></div></div>
+<div class="card-container" id="card-container">
+<div class="card" id="card">
+<div class="card-face card-front">
+<span class="card-label">Soru</span>
+<span class="note-indicator" id="note-ind" style="display:none">📝</span>
+<span class="card-number" id="card-num"></span>
+<div id="front-text"></div>
+<span class="card-topic-badge" id="card-topic"></span>
+<img id="card-topic-img" class="card-topic-img" style="display:none">
+</div>
+<div class="card-face card-back">
+<span class="card-label">Cevap</span>
+<div id="back-text"></div>
+</div>
+</div>
+</div>
+<div class="card-actions">
+<button class="ctrl-btn" onclick="toggleNotes()">📝 Not</button>
+</div>
+<div class="notes-panel" id="notes-panel">
+<textarea class="notes-area" id="note-text" placeholder="Bu kart için notlarınız…" oninput="saveCurrentNote()"></textarea>
+</div>
+<div class="difficulty" id="diff-btns">
+<button class="diff-btn btn-easy" onclick="rate('easy')">✅ Kolay</button>
+<button class="diff-btn btn-medium" onclick="rate('medium')">⚡ Orta</button>
+<button class="diff-btn btn-hard" onclick="rate('hard')">🔥 Zor</button>
+</div>
+<div class="controls">
+<button class="ctrl-btn" onclick="shuffle()">🔀 Karıştır</button>
+<button class="ctrl-btn" onclick="resetRound()">🔄 Sıfırla</button>
+<button class="ctrl-btn" onclick="reviewHard()">🔥 Zor Tekrar</button>
+<button class="ctrl-btn" onclick="showLib()">🏠 Kütüphane</button>
+</div>
+</div>
+<div id="summary-screen" class="hidden summary">
+<h2>🎉 Tur Tamamlandı!</h2>
+<div class="summary-stats">
+<div class="summary-stat"><div class="num" style="color:var(--easy)" id="s-easy">0</div><div class="label">Kolay</div></div>
+<div class="summary-stat"><div class="num" style="color:var(--medium)" id="s-med">0</div><div class="label">Orta</div></div>
+<div class="summary-stat"><div class="num" style="color:var(--hard)" id="s-hard">0</div><div class="label">Zor</div></div>
+</div>
+<p style="color:var(--text2);margin:15px 0">Orta ve zor kartlar tekrar havuzuna eklendi.</p>
+<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+<button class="diff-btn btn-hard" onclick="reviewHard()" id="btn-review">🔁 Tekrar Et</button>
+<button class="ctrl-btn" onclick="resetRound()">🔄 Baştan Başla</button>
+<button class="ctrl-btn" onclick="showLib()">🏠 Kütüphane</button>
+</div>
+</div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   🔧 FIREBASE CONFIG — KENDİ DEĞERLERİNİZİ GİRİN
+   ═══════════════════════════════════════════ */
+const firebaseConfig = {
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCyQUWmso-pDlPLLcBZbTSxF-goZyRlZTw",
+  authDomain: "flascard-kutuphane.firebaseapp.com",
+  projectId: "flascard-kutuphane",
+  storageBucket: "flascard-kutuphane.firebasestorage.app",
+  messagingSenderId: "465830503366",
+  appId: "1:465830503366:web:be09c788284228b83f08c7",
+  measurementId: "G-ZG7VWVTRJ0"
+};
+};
+const ADMIN_EMAIL = "mgulaydr@gmail.com";
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const provider = new firebase.auth.GoogleAuthProvider();
+
+/* ── State ── */
+let currentUser=null,isAdmin=false;
+let allCards=[],deck=[],current=0,flipped=false;
+let scores={easy:[],medium:[],hard:[]};
+let cardRatings={},cardNotes={},topicImgs={};
+let selectedTopics=new Set(),allTopics=[];
+let unsubCards=null,saveTimer=null;
+const PASTELS=['#f0e6f6','#e6f6ee','#fef0e4','#e0eef8','#fce4ec','#e8f0d8','#fff8e1','#fde0e0','#e0f4f4','#ece6f6','#f5e6e0','#e0f0e6'];
+const EMOJIS=['📘','🧬','💊','🫀','🩺','🧪','📐','🌿','🔬','📊','🧠','🦴'];
+
+function $(id){return document.getElementById(id)}
+function hide(id){const e=$(id);if(e){e.classList.add('hidden');e.style.display=''}}
+function show(id,d){const e=$(id);if(e){e.classList.remove('hidden');if(d)e.style.display=d}}
+function toast(m,ms){const t=$('toast');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),ms||2500)}
+function topicColor(t){let h=0;for(let i=0;i<t.length;i++){h=Math.imul(31,h)+t.charCodeAt(i)|0}return PASTELS[Math.abs(h)%PASTELS.length]}
+function topicEmoji(t){let h=0;for(let i=0;i<t.length;i++){h=Math.imul(37,h)+t.charCodeAt(i)|0}return EMOJIS[Math.abs(h)%EMOJIS.length]}
+function cid(topic,q){let h=0;const s=topic+'||'+q;for(let i=0;i<s.length;i++){h=Math.imul(31,h)+s.charCodeAt(i)|0}return 'c'+Math.abs(h).toString(36)}
+
+/* ═══ AUTH ═══ */
+function googleLogin(){auth.signInWithPopup(provider).catch(e=>alert('Giriş hatası: '+e.message))}
+function logout(){if(unsubCards)unsubCards();auth.signOut()}
+function renderAuthBar(){
+  const b=$('auth-bar');
+  if(!currentUser){b.innerHTML='';return}
+  b.innerHTML='<div class="auth-info">'+(currentUser.photoURL?'<img src="'+currentUser.photoURL+'">':'')+
+    '<span>'+currentUser.displayName+'</span>'+(isAdmin?'<span class="admin-badge">Admin</span>':'')+
+    '</div><button class="btn-logout" onclick="logout()">Çıkış</button>';
+}
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    currentUser=user;isAdmin=(user.email===ADMIN_EMAIL);
+    hide('login-screen');show('loading');renderAuthBar();
+    await loadUserState();listenCards();
+  } else {
+    currentUser=null;isAdmin=false;allCards=[];cardRatings={};cardNotes={};topicImgs={};
+    if(unsubCards){unsubCards();unsubCards=null}
+    hide('app');hide('loading');show('login-screen');renderAuthBar();
+  }
+});
+
+/* ═══ FIRESTORE ═══ */
+async function loadUserState(){
+  try{
+    const doc=await db.collection('userState').doc(currentUser.uid).get();
+    if(doc.exists){const d=doc.data();cardRatings=d.ratings||{};cardNotes=d.notes||{}}
+    else{cardRatings={};cardNotes={}}
+  }catch(e){console.error('loadUserState:',e);cardRatings={};cardNotes={}}
+}
+function scheduleSaveUser(){
+  if(saveTimer)clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    try{await db.collection('userState').doc(currentUser.uid).set({
+      ratings:cardRatings,notes:cardNotes,
+      displayName:currentUser.displayName||'',email:currentUser.email||'',
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true})}catch(e){console.error('saveUser:',e)}
+  },1200);
+}
+function listenCards(){
+  unsubCards=db.collection('cards').onSnapshot(snap=>{
+    allCards=snap.docs.map(d=>d.data());
+    loadTopicImages().then(()=>{hide('loading');show('app');
+      if(allCards.length)showLib();else if(isAdmin)showUpload();else showLib()});
+  },err=>{console.error(err);hide('loading');show('app');showLib()});
+}
+async function loadTopicImages(){
+  try{const snap=await db.collection('topicImages').get();topicImgs={};
+    snap.docs.forEach(d=>{topicImgs[d.id]=d.data().data})}catch(e){console.error(e)}
+}
+async function uploadCardsToFS(nc){
+  const chunks=[];for(let i=0;i<nc.length;i+=450)chunks.push(nc.slice(i,i+450));
+  let added=0;const ex=new Set(allCards.map(c=>c.id));
+  for(const ch of chunks){const b=db.batch();ch.forEach(c=>{
+    if(!ex.has(c.id)){b.set(db.collection('cards').doc(c.id),{id:c.id,topic:c.topic,q:c.q,a:c.a});ex.add(c.id);added++}
+  });await b.commit()}return{added,skipped:nc.length-added};
+}
+async function deleteCardsByTopics(topics){
+  const del=allCards.filter(c=>topics.has(c.topic));
+  const chunks=[];for(let i=0;i<del.length;i+=450)chunks.push(del.slice(i,i+450));
+  for(const ch of chunks){const b=db.batch();ch.forEach(c=>b.delete(db.collection('cards').doc(c.id)));await b.commit()}
+  for(const t of topics){try{await db.collection('topicImages').doc(t).delete()}catch(e){}}
+}
+async function saveTopicImgFS(topic,d64){
+  topicImgs[topic]=d64;await db.collection('topicImages').doc(topic).set({data:d64});
+}
+
+/* ═══ CSV ═══ */
+function csvLine(l){const r=[];let c='',q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'&&l[i+1]==='"'){c+='"';i++}else if(ch==='"')q=false;else c+=ch}else{if(ch==='"')q=true;else if(ch===','){r.push(c);c=''}else c+=ch}}r.push(c);return r}
+function parseCSV(text,dt){
+  const lines=text.trim().split(/\r?\n/);if(lines.length<2)return[];
+  const hdr=csvLine(lines[0]).length;const is3=hdr>=3;const cards=[];
+  for(let i=1;i<lines.length;i++){const cols=csvLine(lines[i]);let topic,q,a;
+    if(is3&&cols.length>=3){topic=cols[0].trim()||dt;q=cols[1].trim();a=cols[2].trim()}
+    else if(cols.length>=2){topic=dt;q=cols[0].trim();a=cols[1].trim()}else continue;
+    if(q&&a)cards.push({topic,q,a,id:cid(topic,q)})}return cards;
+}
+
+/* ═══ UPLOAD ═══ */
+document.addEventListener('click',e=>{if(e.target.closest('#upload-area')&&!e.target.closest('input'))$('file-input')?.click()});
+document.addEventListener('dragover',e=>{if(e.target.closest('#upload-area')){e.preventDefault();$('upload-area')?.classList.add('dragover')}});
+document.addEventListener('dragleave',e=>{if(e.target.closest('#upload-area'))$('upload-area')?.classList.remove('dragover')});
+document.addEventListener('drop',e=>{if(e.target.closest('#upload-area')){e.preventDefault();$('upload-area')?.classList.remove('dragover');[...e.dataTransfer.files].forEach(f=>processFile(f))}});
+document.addEventListener('change',e=>{
+  if(e.target.id==='file-input'){[...e.target.files].forEach(f=>processFile(f));e.target.value=''}
+  if(e.target.type==='file'&&e.target.closest('.tc-edit')){const t=e.target.closest('.topic-card')?.dataset.topic;if(t&&e.target.files[0])setTopicImg(t,e.target.files[0])}
+});
+async function processFile(file){
+  if(!isAdmin){toast('⚠️ Sadece admin CSV yükleyebilir');return}
+  const reader=new FileReader();reader.onload=async e=>{
+    const dt=file.name.replace(/\.csv$/i,'');const nc=parseCSV(e.target.result,dt);
+    if(!nc.length){toast('⚠️ '+file.name+': kart bulunamadı');return}
+    toast('⏳ Yükleniyor…');const r=await uploadCardsToFS(nc);
+    toast('✅ '+r.added+' yeni kart eklendi'+(r.skipped?' · '+r.skipped+' tekrar atlandı':''));showLib();
+  };reader.readAsText(file,'UTF-8');
+}
+function setTopicImg(topic,file){
+  if(!isAdmin){toast('⚠️ Sadece admin görsel ekleyebilir');return}
+  const reader=new FileReader();reader.onload=e=>{
+    const img=new Image();img.onload=()=>{
+      const cv=document.createElement('canvas');const mx=240;let w=img.width,h=img.height;
+      if(w>h){if(w>mx){h=h*mx/w;w=mx}}else{if(h>mx){w=w*mx/h;h=mx}}
+      cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
+      saveTopicImgFS(topic,cv.toDataURL('image/jpeg',.75)).then(()=>{renderTopicGrid();toast('🖼️ Görsel kaydedildi')});
+    };img.src=e.target.result;
+  };reader.readAsDataURL(file);
+}
+
+/* ═══ NAV ═══ */
+function showUpload(){if(!isAdmin)return;hide('lib-screen');hide('study-screen');hide('summary-screen');show('upload-area')}
+function showLib(){
+  hide('upload-area');hide('study-screen');hide('summary-screen');
+  const ls=$('lib-screen');ls.classList.remove('hidden');ls.style.display='flex';
+  $('lib-count').textContent=allCards.length+' kart · '+getTopics().length+' konu';
+  updateLibStats();renderTopicGrid();
+  if(isAdmin){$('admin-controls').classList.remove('hidden');$('admin-controls').style.display='flex'}
+  else{$('admin-controls').classList.add('hidden')}
+  $('btn-unrated').style.display=allCards.some(c=>!cardRatings[c.id])&&allCards.some(c=>cardRatings[c.id])?'':'none';
+  $('btn-saved-review').style.display=allCards.some(c=>cardRatings[c.id]==='hard'||cardRatings[c.id]==='medium')?'':'none';
+}
+function updateLibStats(){
+  const el=$('lib-stats');if(!el)return;
+  const rated=allCards.filter(c=>cardRatings[c.id]);
+  const e=rated.filter(c=>cardRatings[c.id]==='easy').length;
+  const m=rated.filter(c=>cardRatings[c.id]==='medium').length;
+  const h=rated.filter(c=>cardRatings[c.id]==='hard').length;
+  el.innerHTML='<div class="stat"><span class="dot" style="background:var(--easy)"></span>Kolay: '+e+'</div>'+
+    '<div class="stat"><span class="dot" style="background:var(--medium)"></span>Orta: '+m+'</div>'+
+    '<div class="stat"><span class="dot" style="background:var(--hard)"></span>Zor: '+h+'</div>'+
+    '<div class="stat">❓ Yeni: '+(allCards.length-rated.length)+'</div>';
+}
+function getTopics(){const t=new Set();allCards.forEach(c=>t.add(c.topic));return[...t].sort()}
+function renderTopicGrid(){
+  allTopics=getTopics();selectedTopics=new Set(allTopics);const el=$('topic-grid');el.innerHTML='';
+  allTopics.forEach(t=>{
+    const count=allCards.filter(c=>c.topic===t).length;const col=topicColor(t);const emo=topicEmoji(t);const img=topicImgs[t];
+    const d=document.createElement('div');d.className='topic-card active';d.dataset.topic=t;
+    d.innerHTML=(isAdmin?'<label class="tc-edit" title="Görsel ekle">📷<input type="file" accept="image/*"></label>':'')+
+      '<div class="tc-img" style="background:'+col+'">'+(img?'<img src="'+img+'">':emo)+'</div>'+
+      '<div class="tc-name" title="'+t+'">'+t+'</div><div class="tc-count">'+count+' kart</div>';
+    el.appendChild(d);
+  });
+}
+document.addEventListener('click',e=>{
+  const tg=e.target.closest('#topic-grid .topic-card');
+  if(!tg||e.target.closest('.tc-edit'))return;
+  const t=tg.dataset.topic;if(selectedTopics.has(t))selectedTopics.delete(t);else selectedTopics.add(t);
+  document.querySelectorAll('.topic-card').forEach(el=>el.classList.toggle('active',selectedTopics.has(el.dataset.topic)));
+});
+function selCards(){return allCards.filter(c=>selectedTopics.has(c.topic))}
+async function deleteSelectedTopics(){
+  if(!isAdmin)return;if(!selectedTopics.size){alert('Silinecek konu seçin.');return}
+  if(!confirm([...selectedTopics].join(', ')+' konularındaki kartlar silinecek. Emin misiniz?'))return;
+  toast('⏳ Siliniyor…');await deleteCardsByTopics(selectedTopics);toast('🗑️ Konular silindi');
+}
+function resetRatings(){if(!confirm('Tüm puanlarınız sıfırlanacak. Emin misiniz?'))return;cardRatings={};scheduleSaveUser();showLib()}
+
+/* ═══ STUDY ═══ */
+function studySelected(){const c=selCards();if(!c.length){alert('Kart yok!');return}startStudy(c)}
+function studyUnratedSel(){const c=selCards().filter(x=>!cardRatings[x.id]);if(!c.length){alert('Yeni kart yok!');return}startStudy(c)}
+function studyHardSel(){let r=[];selCards().forEach(c=>{if(cardRatings[c.id]==='hard')r.push(c,c,c);else if(cardRatings[c.id]==='medium')r.push(c,c)});if(!r.length){alert('Tekrar kartı yok!');return}shuf(r);startStudy(r)}
+function startStudy(cards){
+  deck=[...cards];current=0;flipped=false;scores={easy:[],medium:[],hard:[]};
+  hide('upload-area');hide('lib-screen');hide('summary-screen');
+  $('notes-panel').style.display='none';
+  $('study-screen').classList.remove('hidden');$('study-screen').style.display='flex';showCard();
+}
+function showCard(){
+  if(current>=deck.length){showSummary();return}
+  flipped=false;$('card').classList.remove('flipped');const c=deck[current];
+  $('front-text').textContent=c.q;$('back-text').textContent=c.a;
+  $('card-num').textContent=(current+1)+' / '+deck.length;
+  $('progress').style.width=((current/deck.length)*100)+'%';
+  $('diff-btns').style.visibility='hidden';$('card-topic').textContent=c.topic;
+  const ti=$('card-topic-img');
+  if(topicImgs[c.topic]){ti.src=topicImgs[c.topic];ti.style.display=''}else ti.style.display='none';
+  $('note-ind').style.display=cardNotes[c.id]?'':'none';
+  if($('notes-panel').style.display!=='none')$('note-text').value=cardNotes[c.id]||'';
+  updateStats();
+}
+document.addEventListener('click',e=>{if(e.target.closest('#card-container')){
+  flipped=!flipped;$('card').classList.toggle('flipped',flipped);
+  if(flipped)$('diff-btns').style.visibility='visible';
+}});
+function rate(level){const c=deck[current];scores[level].push(c);cardRatings[c.id]=level;scheduleSaveUser();current++;showCard()}
+function updateStats(){
+  $('stats').innerHTML='<div class="stat"><span class="dot" style="background:var(--easy)"></span>'+scores.easy.length+'</div>'+
+    '<div class="stat"><span class="dot" style="background:var(--medium)"></span>'+scores.medium.length+'</div>'+
+    '<div class="stat"><span class="dot" style="background:var(--hard)"></span>'+scores.hard.length+'</div>'+
+    '<div class="stat">📚 '+(deck.length-current)+'</div>';
+}
+function toggleNotes(){const p=$('notes-panel');const s=p.style.display==='none';p.style.display=s?'block':'none';if(s&&current<deck.length){$('note-text').value=cardNotes[deck[current].id]||'';$('note-text').focus()}}
+function saveCurrentNote(){if(current>=deck.length)return;const c=deck[current],t=$('note-text').value;if(t)cardNotes[c.id]=t;else delete cardNotes[c.id];scheduleSaveUser();$('note-ind').style.display=t?'':'none'}
+function showSummary(){
+  $('study-screen').style.display='none';$('notes-panel').style.display='none';
+  $('summary-screen').classList.remove('hidden');
+  $('s-easy').textContent=scores.easy.length;$('s-med').textContent=scores.medium.length;$('s-hard').textContent=scores.hard.length;
+  $('btn-review').style.display=(scores.medium.length+scores.hard.length)?'':'none';
+}
+function reviewHard(){
+  let r=[];scores.hard.forEach(c=>r.push(c,c,c));scores.medium.forEach(c=>r.push(c,c));
+  if(!r.length){alert('Tekrar kartı yok!');return}
+  shuf(r);deck=r;current=0;flipped=false;scores={easy:[],medium:[],hard:[]};
+  $('summary-screen').classList.add('hidden');$('study-screen').classList.remove('hidden');$('study-screen').style.display='flex';showCard();
+}
+function shuf(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
+function shuffle(){shuf(deck);current=0;flipped=false;scores={easy:[],medium:[],hard:[]};showCard()}
+function resetRound(){hide('summary-screen');$('notes-panel').style.display='none';startStudy(selCards().length?selCards():allCards)}
+document.addEventListener('keydown',e=>{
+  if(document.activeElement.tagName==='TEXTAREA'||document.activeElement.tagName==='INPUT')return;
+  if(e.key===' '||e.key==='Enter'){e.preventDefault();$('card-container')?.click()}
+  if(flipped){if(e.key==='1')rate('easy');if(e.key==='2')rate('medium');if(e.key==='3')rate('hard')}
+  if(e.key.toLowerCase()==='n')toggleNotes();
+});
+</script>
+</body>
+</html>
