@@ -159,6 +159,8 @@ Google ile Giriş Yap
 </div>
 <div id="admin-controls" class="hidden" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px">
 <button class="ctrl-btn" onclick="showUpload()">➕ CSV Ekle</button>
+<button class="ctrl-btn" onclick="groupSelectedUnderParent()">📁 Üst Konu Oluştur</button>
+<button class="ctrl-btn" onclick="ungroupSelected()">⬆️ Üst Konuyu Kaldır</button>
 <button class="ctrl-btn" onclick="deleteSelectedTopics()">🗑️ Seçili Konuları Sil</button>
 </div>
 <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
@@ -456,6 +458,48 @@ async function deleteSelectedTopics(){
   if(!isAdmin)return;if(!selectedTopics.size){alert('Silinecek konu seçin.');return}
   if(!confirm([...selectedTopics].join(', ')+' konularındaki kartlar silinecek. Emin misiniz?'))return;
   toast('⏳ Siliniyor…');await deleteCardsByTopics(selectedTopics);toast('🗑️ Konular silindi');
+}
+async function groupSelectedUnderParent(){
+  if(!isAdmin)return;
+  if(!selectedTopics.size){alert('Gruplamak istediğiniz konuları seçin.');return}
+  const parentName=prompt('Üst konu başlığı girin:');
+  if(!parentName||!parentName.trim())return;
+  const parent=parentName.trim();
+  const toUpdate=allCards.filter(c=>{const parts=parseTopic(c.topic);for(const key of selectedTopics){const path=key.split(' > ');if(path.every((v,i)=>parts[i]===v))return true}return false});
+  if(!toUpdate.length){alert('Seçili konularda kart bulunamadı.');return}
+  const maxD=Math.max(...toUpdate.map(c=>parseTopic(c.topic).length));
+  if(maxD+1>3){alert('Bazı kartlar zaten 3 düzeyde. Daha fazla iç içe geçme desteklenmiyor.');return}
+  if(!confirm(toUpdate.length+' kart "'+parent+'" üst konusu altına taşınacak. Emin misiniz?'))return;
+  toast('⏳ Kartlar taşınıyor…');
+  const chunks=[];for(let i=0;i<toUpdate.length;i+=225)chunks.push(toUpdate.slice(i,i+225));
+  for(const ch of chunks){const b=db.batch();ch.forEach(c=>{
+    const newTopic=parent+' > '+c.topic;const newId=cid(newTopic,c.q);
+    b.delete(db.collection('cards').doc(c.id));
+    b.set(db.collection('cards').doc(newId),{id:newId,topic:newTopic,q:c.q,a:c.a});
+    if(cardRatings[c.id]){cardRatings[newId]=cardRatings[c.id];delete cardRatings[c.id]}
+    if(cardNotes[c.id]){cardNotes[newId]=cardNotes[c.id];delete cardNotes[c.id]}
+  });await b.commit()}
+  scheduleSaveUser();selectedTopics.clear();navPath=[];
+  toast('✅ Kartlar "'+parent+'" altına taşındı');
+}
+async function ungroupSelected(){
+  if(!isAdmin)return;
+  if(!selectedTopics.size){alert('Grubunu kaldırmak istediğiniz konuları seçin.');return}
+  const toUpdate=allCards.filter(c=>{const parts=parseTopic(c.topic);if(parts.length<2)return false;for(const key of selectedTopics){const path=key.split(' > ');if(path.every((v,i)=>parts[i]===v))return true}return false});
+  if(!toUpdate.length){alert('Seçili konularda taşınacak kart yok veya zaten kök düzeyde.');return}
+  if(!confirm(toUpdate.length+' kartın üst konu başlığı kaldırılacak. Emin misiniz?'))return;
+  toast('⏳ Kartlar taşınıyor…');
+  const chunks=[];for(let i=0;i<toUpdate.length;i+=225)chunks.push(toUpdate.slice(i,i+225));
+  for(const ch of chunks){const b=db.batch();ch.forEach(c=>{
+    const parts=parseTopic(c.topic);
+    const newTopic=parts.slice(1).join(' > ');const newId=cid(newTopic,c.q);
+    b.delete(db.collection('cards').doc(c.id));
+    b.set(db.collection('cards').doc(newId),{id:newId,topic:newTopic,q:c.q,a:c.a});
+    if(cardRatings[c.id]){cardRatings[newId]=cardRatings[c.id];delete cardRatings[c.id]}
+    if(cardNotes[c.id]){cardNotes[newId]=cardNotes[c.id];delete cardNotes[c.id]}
+  });await b.commit()}
+  scheduleSaveUser();selectedTopics.clear();navPath=[];
+  toast('✅ Üst konu başlığı kaldırıldı');
 }
 function resetRatings(){if(!confirm('Tüm puanlarınız sıfırlanacak. Emin misiniz?'))return;cardRatings={};scheduleSaveUser();showLib()}
 
