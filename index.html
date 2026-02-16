@@ -93,6 +93,29 @@ h2{color:var(--text);font-weight:700}
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--text);padding:12px 24px;border-radius:var(--radius-sm);font-size:.88rem;font-weight:700;z-index:999;opacity:0;transition:opacity .3s;box-shadow:var(--shadow-lg);border:1.5px solid #e0d4ea}
 .toast.show{opacity:1}
 .hidden{display:none!important}
+.tc-stats{display:flex;gap:4px;justify-content:center;margin-top:4px;flex-wrap:wrap}
+.tc-stats span{font-size:.6rem;padding:1px 5px;border-radius:6px;font-weight:700}
+.tc-review-btn{margin-top:6px;padding:4px 10px;border:none;border-radius:8px;background:var(--accent-light);color:var(--accent);font-family:inherit;font-size:.68rem;font-weight:700;cursor:pointer;transition:.2s}
+.tc-review-btn:hover{background:var(--accent);color:#fff}
+.admin-card-actions{display:flex;gap:8px;justify-content:center;margin-bottom:10px}
+.admin-card-btn{padding:8px 16px;background:var(--surface);color:var(--text);border:1.5px solid #e0d4ea;border-radius:var(--radius-sm);font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer;transition:.2s}
+.admin-card-btn:hover{background:var(--accent-light);border-color:var(--accent)}
+.edit-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:100}
+.edit-modal{background:var(--surface);border-radius:var(--radius);padding:28px;width:90%;max-width:440px;box-shadow:var(--shadow-lg)}
+.edit-modal h3{margin-bottom:16px;font-size:1.1rem}
+.edit-modal label{display:block;font-size:.82rem;font-weight:700;color:var(--text2);margin:10px 0 4px}
+.edit-modal textarea{width:100%;min-height:60px;background:#faf7f4;border:1.5px solid #e0d4ea;border-radius:var(--radius-sm);padding:10px;font-family:inherit;font-size:.9rem;resize:vertical;outline:none}
+.edit-modal textarea:focus{border-color:var(--accent)}
+.edit-modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+.edit-modal-btns button{padding:10px 20px;border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer}
+.edit-save{background:var(--accent);color:#fff}
+.edit-cancel{background:#e0d4ea;color:var(--text)}
+.breadcrumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:10px;width:100%;max-width:540px}
+.bc-item{cursor:pointer;color:var(--accent);font-weight:700;padding:2px 8px;border-radius:8px;transition:.2s;font-size:.82rem}
+.bc-item:hover{background:var(--accent-light)}
+.bc-sep{color:var(--text2);font-size:.78rem}
+.tc-drill{position:absolute;bottom:6px;right:6px;width:26px;height:26px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:.65rem;cursor:pointer;transition:.2s;z-index:2;color:var(--accent);font-weight:800}
+.tc-drill:hover{background:var(--accent);color:#fff}
 @media(max-width:520px){
 .card-container{height:250px}.card-face{font-size:1rem;padding:20px}
 h1{font-size:1.5rem}.controls{gap:6px}.ctrl-btn{padding:8px 12px;font-size:.78rem}
@@ -126,7 +149,8 @@ Google ile Giriş Yap
 <h2 id="lib-title">📚 Kart Kütüphanesi</h2>
 <p id="lib-count" style="color:var(--text2);font-size:.85rem;margin:4px 0 8px"></p>
 <div class="stats" id="lib-stats"></div>
-<p class="section-label">📁 Konular <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.72rem">(tıkla: seç)</span></p>
+<p class="section-label">📁 Konular <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.72rem">(tıkla: seç · ▶ alt konulara in)</span></p>
+<div id="breadcrumb" class="breadcrumb"></div>
 <div class="topic-grid" id="topic-grid"></div>
 <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px">
 <button class="diff-btn btn-easy" onclick="studySelected()">▶️ Seçilenleri Çalış</button>
@@ -162,6 +186,10 @@ Google ile Giriş Yap
 </div>
 <div class="card-actions">
 <button class="ctrl-btn" onclick="toggleNotes()">📝 Not</button>
+</div>
+<div id="admin-card-btns" class="admin-card-actions hidden">
+<button class="admin-card-btn" onclick="editCurrentCard()">✏️ Düzenle</button>
+<button class="admin-card-btn" onclick="deleteCurrentCard()">🗑️ Kartı Sil</button>
 </div>
 <div class="notes-panel" id="notes-panel">
 <textarea class="notes-area" id="note-text" placeholder="Bu kart için notlarınız…" oninput="saveCurrentNote()"></textarea>
@@ -219,7 +247,7 @@ let currentUser=null,isAdmin=false;
 let allCards=[],deck=[],current=0,flipped=false;
 let scores={easy:[],medium:[],hard:[]};
 let cardRatings={},cardNotes={},topicImgs={};
-let selectedTopics=new Set(),allTopics=[];
+let selectedTopics=new Set(),allTopics=[],navPath=[];
 let unsubCards=null,saveTimer=null;
 const PASTELS=['#f0e6f6','#e6f6ee','#fef0e4','#e0eef8','#fce4ec','#e8f0d8','#fff8e1','#fde0e0','#e0f4f4','#ece6f6','#f5e6e0','#e0f0e6'];
 const EMOJIS=['📘','🧬','💊','🫀','🩺','🧪','📐','🌿','🔬','📊','🧠','🦴'];
@@ -231,6 +259,9 @@ function toast(m,ms){const t=$('toast');if(!t)return;t.textContent=m;t.classList
 function topicColor(t){let h=0;for(let i=0;i<t.length;i++){h=Math.imul(31,h)+t.charCodeAt(i)|0}return PASTELS[Math.abs(h)%PASTELS.length]}
 function topicEmoji(t){let h=0;for(let i=0;i<t.length;i++){h=Math.imul(37,h)+t.charCodeAt(i)|0}return EMOJIS[Math.abs(h)%EMOJIS.length]}
 function cid(topic,q){let h=0;const s=topic+'||'+q;for(let i=0;i<s.length;i++){h=Math.imul(31,h)+s.charCodeAt(i)|0}return 'c'+Math.abs(h).toString(36)}
+function parseTopic(t){return t.split('>').map(s=>s.trim()).filter(s=>s)}
+function getCardsAtPath(cards,path){if(!path.length)return cards;return cards.filter(c=>{const p=parseTopic(c.topic);return path.every((v,i)=>p[i]===v)})}
+function topicFullPath(arr){return arr.join(' > ')}
 
 /* ═══ AUTH ═══ */
 function googleLogin(){auth.signInWithPopup(provider).catch(e=>alert('Giriş hatası: '+e.message))}
@@ -291,7 +322,7 @@ async function uploadCardsToFS(nc){
   });await b.commit()}return{added,skipped:nc.length-added};
 }
 async function deleteCardsByTopics(topics){
-  const del=allCards.filter(c=>topics.has(c.topic));
+  const del=allCards.filter(c=>{const parts=parseTopic(c.topic);for(const key of topics){const path=key.split(' > ');if(path.every((v,i)=>parts[i]===v))return true}return false});
   const chunks=[];for(let i=0;i<del.length;i+=450)chunks.push(del.slice(i,i+450));
   for(const ch of chunks){const b=db.batch();ch.forEach(c=>b.delete(db.collection('cards').doc(c.id)));await b.commit()}
   for(const t of topics){try{await db.collection('topicImages').doc(t).delete()}catch(e){}}
@@ -355,34 +386,72 @@ function showLib(){
 }
 function updateLibStats(){
   const el=$('lib-stats');if(!el)return;
-  const rated=allCards.filter(c=>cardRatings[c.id]);
+  const base=getCardsAtPath(allCards,navPath);
+  const rated=base.filter(c=>cardRatings[c.id]);
   const e=rated.filter(c=>cardRatings[c.id]==='easy').length;
   const m=rated.filter(c=>cardRatings[c.id]==='medium').length;
   const h=rated.filter(c=>cardRatings[c.id]==='hard').length;
   el.innerHTML='<div class="stat"><span class="dot" style="background:var(--easy)"></span>Kolay: '+e+'</div>'+
     '<div class="stat"><span class="dot" style="background:var(--medium)"></span>Orta: '+m+'</div>'+
     '<div class="stat"><span class="dot" style="background:var(--hard)"></span>Zor: '+h+'</div>'+
-    '<div class="stat">❓ Yeni: '+(allCards.length-rated.length)+'</div>';
+    '<div class="stat">❓ Yeni: '+(base.length-rated.length)+'</div>';
 }
 function getTopics(){const t=new Set();allCards.forEach(c=>t.add(c.topic));return[...t].sort()}
 function renderTopicGrid(){
-  allTopics=getTopics();selectedTopics=new Set(allTopics);const el=$('topic-grid');el.innerHTML='';
-  allTopics.forEach(t=>{
-    const count=allCards.filter(c=>c.topic===t).length;const col=topicColor(t);const emo=topicEmoji(t);const img=topicImgs[t];
-    const d=document.createElement('div');d.className='topic-card active';d.dataset.topic=t;
-    d.innerHTML=(isAdmin?'<label class="tc-edit" title="Görsel ekle">📷<input type="file" accept="image/*"></label>':'')+
+  const el=$('topic-grid');el.innerHTML='';
+  renderBreadcrumb();
+  const depth=navPath.length;
+  const pathCards=getCardsAtPath(allCards,navPath);
+  const topicsMap=new Map();
+  pathCards.forEach(c=>{
+    const parts=parseTopic(c.topic);
+    if(parts.length>depth){
+      const key=parts[depth];
+      if(!topicsMap.has(key))topicsMap.set(key,[]);
+      topicsMap.get(key).push(c);
+    }
+  });
+  const sorted=[...topicsMap.keys()].sort();
+  allTopics=sorted;
+  sorted.forEach(t=>{
+    const tc=topicsMap.get(t);const count=tc.length;
+    const eC=tc.filter(c=>cardRatings[c.id]==='easy').length;
+    const mC=tc.filter(c=>cardRatings[c.id]==='medium').length;
+    const hC=tc.filter(c=>cardRatings[c.id]==='hard').length;
+    const nC=count-eC-mC-hC;
+    const hasChildren=tc.some(c=>parseTopic(c.topic).length>depth+1);
+    const fullPath=topicFullPath([...navPath,t]);
+    const col=topicColor(t);const emo=topicEmoji(t);const img=topicImgs[fullPath]||topicImgs[t];
+    const sel=selectedTopics.has(fullPath);
+    const d=document.createElement('div');d.className='topic-card'+(sel?' active':'');d.dataset.topic=fullPath;d.dataset.name=t;
+    let st='<div class="tc-stats">';
+    if(eC)st+='<span style="background:#d4f5e2;color:#2a7a4b">✅ '+eC+'</span>';
+    if(mC)st+='<span style="background:#fef0c8;color:#8a6d1b">⚡ '+mC+'</span>';
+    if(hC)st+='<span style="background:#fdd;color:#c44">🔥 '+hC+'</span>';
+    if(nC)st+='<span style="background:#eee;color:#888">❓ '+nC+'</span>';
+    st+='</div>';
+    let rb='';if(mC||hC)rb='<button class="tc-review-btn" data-review-topic="'+fullPath+'">🔁 Tekrar ('+(mC+hC)+')</button>';
+    let drillHtml='';if(hasChildren)drillHtml='<div class="tc-drill" data-drill="'+t+'" title="Alt konulara in">▶</div>';
+    d.innerHTML=(isAdmin?'<label class="tc-edit" title="Görsel ekle">📷<input type="file" accept="image/*"></label>':'')+drillHtml+
       '<div class="tc-img" style="background:'+col+'">'+(img?'<img src="'+img+'">':emo)+'</div>'+
-      '<div class="tc-name" title="'+t+'">'+t+'</div><div class="tc-count">'+count+' kart</div>';
+      '<div class="tc-name" title="'+t+'">'+t+'</div><div class="tc-count">'+count+' kart'+(hasChildren?' ▶':'')+'</div>'+st+rb;
     el.appendChild(d);
   });
+  $('lib-count').textContent=pathCards.length+' kart · '+sorted.length+(navPath.length?' alt konu':' konu');
 }
 document.addEventListener('click',e=>{
+  const bc=e.target.closest('.bc-item');
+  if(bc){navigateToDepth(parseInt(bc.dataset.depth));return}
+  const dr=e.target.closest('[data-drill]');
+  if(dr){drillDown(dr.dataset.drill);return}
+  const rb=e.target.closest('[data-review-topic]');
+  if(rb){reviewTopic(rb.dataset.reviewTopic);return}
   const tg=e.target.closest('#topic-grid .topic-card');
   if(!tg||e.target.closest('.tc-edit'))return;
   const t=tg.dataset.topic;if(selectedTopics.has(t))selectedTopics.delete(t);else selectedTopics.add(t);
   document.querySelectorAll('.topic-card').forEach(el=>el.classList.toggle('active',selectedTopics.has(el.dataset.topic)));
 });
-function selCards(){return allCards.filter(c=>selectedTopics.has(c.topic))}
+function selCards(){if(!selectedTopics.size)return[];return allCards.filter(c=>{const parts=parseTopic(c.topic);for(const key of selectedTopics){const path=key.split(' > ');if(path.every((v,i)=>parts[i]===v))return true}return false})}
 async function deleteSelectedTopics(){
   if(!isAdmin)return;if(!selectedTopics.size){alert('Silinecek konu seçin.');return}
   if(!confirm([...selectedTopics].join(', ')+' konularındaki kartlar silinecek. Emin misiniz?'))return;
@@ -391,9 +460,9 @@ async function deleteSelectedTopics(){
 function resetRatings(){if(!confirm('Tüm puanlarınız sıfırlanacak. Emin misiniz?'))return;cardRatings={};scheduleSaveUser();showLib()}
 
 /* ═══ STUDY ═══ */
-function studySelected(){const c=selCards();if(!c.length){alert('Kart yok!');return}startStudy(c)}
-function studyUnratedSel(){const c=selCards().filter(x=>!cardRatings[x.id]);if(!c.length){alert('Yeni kart yok!');return}startStudy(c)}
-function studyHardSel(){let r=[];selCards().forEach(c=>{if(cardRatings[c.id]==='hard')r.push(c,c,c);else if(cardRatings[c.id]==='medium')r.push(c,c)});if(!r.length){alert('Tekrar kartı yok!');return}shuf(r);startStudy(r)}
+function studySelected(){if(!selectedTopics.size){alert('Lütfen çalışmak istediğiniz konuları seçin.');return}const c=selCards();if(!c.length){alert('Kart yok!');return}startStudy(c)}
+function studyUnratedSel(){if(!selectedTopics.size){alert('Lütfen çalışmak istediğiniz konuları seçin.');return}const c=selCards().filter(x=>!cardRatings[x.id]);if(!c.length){alert('Yeni kart yok!');return}startStudy(c)}
+function studyHardSel(){if(!selectedTopics.size){alert('Lütfen çalışmak istediğiniz konuları seçin.');return}let r=[];selCards().forEach(c=>{if(cardRatings[c.id]==='hard')r.push(c,c,c);else if(cardRatings[c.id]==='medium')r.push(c,c)});if(!r.length){alert('Tekrar kartı yok!');return}shuf(r);startStudy(r)}
 function startStudy(cards){
   deck=[...cards];current=0;flipped=false;scores={easy:[],medium:[],hard:[]};
   hide('upload-area');hide('lib-screen');hide('summary-screen');
@@ -411,6 +480,7 @@ function showCard(){
   if(topicImgs[c.topic]){ti.src=topicImgs[c.topic];ti.style.display=''}else ti.style.display='none';
   $('note-ind').style.display=cardNotes[c.id]?'':'none';
   if($('notes-panel').style.display!=='none')$('note-text').value=cardNotes[c.id]||'';
+  if(isAdmin){$('admin-card-btns').classList.remove('hidden')}else{$('admin-card-btns').classList.add('hidden')}
   updateStats();
 }
 document.addEventListener('click',e=>{if(e.target.closest('#card-container')){
@@ -446,7 +516,89 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '||e.key==='Enter'){e.preventDefault();$('card-container')?.click()}
   if(flipped){if(e.key==='1')rate('easy');if(e.key==='2')rate('medium');if(e.key==='3')rate('hard')}
   if(e.key.toLowerCase()==='n')toggleNotes();
+  if(e.key.toLowerCase()==='e'&&isAdmin)editCurrentCard();
 });
+/* ═══ NAV & BREADCRUMB ═══ */
+function renderBreadcrumb(){
+  const el=$('breadcrumb');if(!el)return;
+  if(!navPath.length){el.innerHTML='';el.style.display='none';return}
+  el.style.display='flex';
+  let html='<span class="bc-item" data-depth="-1">🏠 Tümü</span>';
+  navPath.forEach((p,i)=>{html+=' <span class="bc-sep">›</span> <span class="bc-item" data-depth="'+i+'">'+p+'</span>'});
+  el.innerHTML=html;
+}
+function drillDown(name){navPath.push(name);selectedTopics.clear();renderTopicGrid();updateLibStats()}
+function navigateToDepth(d){if(d<0)navPath=[];else navPath=navPath.slice(0,d+1);selectedTopics.clear();renderTopicGrid();updateLibStats()}
+/* ═══ PER-TOPIC REVIEW ═══ */
+function reviewTopic(topicKey){
+  const path=topicKey.split(' > ');
+  let r=[];getCardsAtPath(allCards,path).forEach(c=>{
+    if(cardRatings[c.id]==='hard')r.push(c,c,c);
+    else if(cardRatings[c.id]==='medium')r.push(c,c);
+  });
+  if(!r.length){alert('Bu konuda tekrar kartı yok!');return}
+  shuf(r);startStudy(r);
+}
+/* ═══ ADMIN: KART DÜZENLEME & SİLME ═══ */
+function editCurrentCard(){
+  if(!isAdmin||current>=deck.length)return;
+  const c=deck[current];
+  $('edit-topic').value=c.topic;
+  $('edit-q').value=c.q;
+  $('edit-a').value=c.a;
+  $('edit-modal').classList.remove('hidden');
+}
+function closeEditModal(){$('edit-modal').classList.add('hidden')}
+async function saveCardEdit(){
+  if(!isAdmin||current>=deck.length)return;
+  const c=deck[current];
+  const newTopic=$('edit-topic').value.trim();
+  const newQ=$('edit-q').value.trim();
+  const newA=$('edit-a').value.trim();
+  if(!newQ||!newA){alert('Soru ve cevap boş olamaz.');return}
+  const newId=cid(newTopic,newQ);
+  try{
+    if(newId!==c.id){
+      await db.collection('cards').doc(c.id).delete();
+      if(cardRatings[c.id]){cardRatings[newId]=cardRatings[c.id];delete cardRatings[c.id]}
+      if(cardNotes[c.id]){cardNotes[newId]=cardNotes[c.id];delete cardNotes[c.id]}
+      scheduleSaveUser();
+      await db.collection('cards').doc(newId).set({id:newId,topic:newTopic,q:newQ,a:newA});
+    }else{
+      await db.collection('cards').doc(c.id).update({topic:newTopic,q:newQ,a:newA});
+    }
+    deck[current]={id:newId,topic:newTopic,q:newQ,a:newA};
+    showCard();closeEditModal();toast('✅ Kart güncellendi');
+  }catch(e){alert('Hata: '+e.message)}
+}
+async function deleteCurrentCard(){
+  if(!isAdmin||current>=deck.length)return;
+  const c=deck[current];
+  if(!confirm('Bu kart silinecek:\n"'+c.q+'"\nEmin misiniz?'))return;
+  try{
+    await db.collection('cards').doc(c.id).delete();
+    delete cardRatings[c.id];delete cardNotes[c.id];scheduleSaveUser();
+    deck.splice(current,1);
+    if(current>=deck.length)current=Math.max(0,deck.length-1);
+    if(!deck.length){toast('🗑️ Kart silindi');showLib();return}
+    showCard();toast('🗑️ Kart silindi');
+  }catch(e){alert('Hata: '+e.message)}
+}
 </script>
+<div id="edit-modal" class="edit-modal-overlay hidden" onclick="if(event.target===this)closeEditModal()">
+<div class="edit-modal">
+<h3>✏️ Kartı Düzenle</h3>
+<label>Konu</label>
+<textarea id="edit-topic" rows="1"></textarea>
+<label>Soru</label>
+<textarea id="edit-q"></textarea>
+<label>Cevap</label>
+<textarea id="edit-a"></textarea>
+<div class="edit-modal-btns">
+<button class="edit-cancel" onclick="closeEditModal()">İptal</button>
+<button class="edit-save" onclick="saveCardEdit()">💾 Kaydet</button>
+</div>
+</div>
+</div>
 </body>
 </html>
